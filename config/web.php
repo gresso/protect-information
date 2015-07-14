@@ -7,9 +7,12 @@ $config = [
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log'],
     'components' => [
+
+
+
         'request' => [
             // !!! insert a secret key in the following (if it is empty) - this is required by cookie validation
-            'cookieValidationKey' => 'Kj9YuBETXU_hjpNpAMf5MHlwz_P4h0g9',
+            'cookieValidationKey' => 'zAS2C1BZuUkHZG4g0z7DJPFI-PEYGXPO',
         ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
@@ -38,6 +41,11 @@ $config = [
             ],
         ],
         'db' => require(__DIR__ . '/db.php'),
+
+        'urlManager' => [ //you wrote `urlManager` which must change to 'urlManager'
+            'enablePrettyUrl' => true,
+            'showScriptName' => false,
+        ],
     ],
     'params' => $params,
 ];

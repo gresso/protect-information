@@ -10,12 +10,10 @@ use yii\base\Model;
  */
 class LoginForm extends Model
 {
-    public $username;
-    public $password;
-    public $rememberMe = true;
-
-    private $_user = false;
-
+    public $email;
+    public $passw;
+    public $code;
+    public $_errors;
 
     /**
      * @return array the validation rules.
@@ -23,57 +21,120 @@ class LoginForm extends Model
     public function rules()
     {
         return [
-            // username and password are both required
-            [['username', 'password'], 'required'],
-            // rememberMe must be a boolean value
-            ['rememberMe', 'boolean'],
-            // password is validated by validatePassword()
-            ['password', 'validatePassword'],
+            [['email', 'passw'], 'required'],
+            ['passw', 'validatePassw'],
+            ['email', 'email'],
+            ['email', 'isSetAttrDb'],
         ];
     }
 
-    /**
-     * Validates the password.
-     * This method serves as the inline validation for password.
-     *
-     * @param string $attribute the attribute currently being validated
-     * @param array $params the additional name-value pairs given in the rule
-     */
-    public function validatePassword($attribute, $params)
-    {
-        if (!$this->hasErrors()) {
-            $user = $this->getUser();
 
-            if (!$user || !$user->validatePassword($this->password)) {
-                $this->addError($attribute, 'Incorrect username or password.');
-            }
+
+    /**
+     * Отсылаем код авторизации
+     */
+    public function SendCode(){
+
+        //Если данные валидны и пользователь есть в базе данных
+        if ($this->validate() && $this->isUserInDb()){
+            $this->generateVerifCode();
         }
+        $this->_errors = $this->errors;
+
     }
 
     /**
-     * Logs in a user using the provided username and password.
-     * @return boolean whether the user is logged in successfully
+     * Генерит и записывает хеш кода верификации
      */
-    public function login()
-    {
-        if ($this->validate()) {
-            return Yii::$app->user->login($this->getUser(), $this->rememberMe ? 3600*24*30 : 0);
-        } else {
+
+    public  function generateVerifCode(){
+        $code = Yii::$app->security->generateRandomString(4);
+        //Пишем хеш в базу
+        Yii::$app->db
+            ->createCommand("UPDATE user SET AuthKey='".md5($code)."' WHERE email = '$this->email';")
+            ->execute();
+        //Отправляем код пользователю
+        $this->SendMailVerifCod($code);
+    }
+
+
+    /**
+     * Отправляет письмо с кодом верификации
+     */
+
+    public  function SendMailVerifCod($code){
+        Yii::$app->mailer->compose('verificode', ['code'=>$code])
+            ->setTo($this->email)
+            ->setFrom([Yii::$app->params['appEmail'] => Yii::$app->params['appName']])
+            ->setSubject('Verification Code.')
+            ->send();
+        return true;
+
+    }
+
+    /**
+     * Проверяет есть ли юзер с указанным логином и паролем
+     */
+
+    public  function isUserInDb(){
+        $ur = Yii::$app->db
+            ->createCommand("select count(*) as `count` from `user` where `email` = '{$this->email}' and `passw`='".md5($this->passw)."';")
+            ->queryOne();
+
+        if ($ur['count']!=1){
+            $this->addError('form',"Пара логин и пароль не совпадают");
             return false;
         }
+        if ($ur['count']==1){
+            return true;
+        }
+
     }
 
     /**
-     * Finds user by [[username]]
-     *
-     * @return User|null
+     * Логиним пользователя
      */
-    public function getUser()
-    {
-        if ($this->_user === false) {
-            $this->_user = User::findByUsername($this->username);
+    public function login(){
+        if ($this->validate()){
+
+        }
+        $this->_errors = $this->errors;
+
+    }
+
+
+    /**
+     * Проверка занятости в базе
+     */
+    public function isSetAttrDb($attr){
+        $us = Yii::$app->db
+            ->createCommand("select count(*) as `count` from `user` where `{$attr}` = '{$this->$attr}'")
+            ->queryOne();
+
+        if ($us['count']!=1){
+            $this->addError($attr,"Пользователь с таким {$attr} не зарегистрирован в нашей системе");
+        }
+    }
+
+    /**
+     * Валидация пароля
+     */
+    public function validatePassw($attr){
+
+        if (strlen($this->$attr)<=3){
+            $this->addError($attr, 'Пароль менее 4-х символов');
         }
 
-        return $this->_user;
+        if (!preg_match("/^[0-9a-z]+$/i", $this->$attr)){
+            $this->addError($attr, 'Пароль должен состоять из A-Z;a-z;0-9.');
+            return false;
+        }
+
+        if (preg_match("/^[0-9]+$/i", $this->$attr) || preg_match("/^[a-z]+$/i", $this->$attr)){
+            $this->addError($attr, 'Пароль должен состоять из сочетаний букв и цифр.');
+            return false;
+        }
+        return true ;
     }
+
 }

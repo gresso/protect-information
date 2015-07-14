@@ -1,5 +1,8 @@
 <?php
 
 return [
-    'adminEmail' => 'admin@example.com',
+    'adminEmail' => 'webmaster@gresso.com',
+    'appName'=>'Protect Manager',
+    'appEmail'=>'service@pmanager.com',
+
 ];
