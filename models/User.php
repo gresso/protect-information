@@ -12,8 +12,6 @@ class User extends \yii\base\Object implements \yii\web\IdentityInterface
     public $authKey;
 
 
-
-
     public static function findIdentity($id){
         return (new Query())->from('user')->where(['id'=>$id])->one();
     }
